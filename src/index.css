@@ -1,0 +1,45 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Prevent tldraw from hiding the cursor */
+.tl-canvas,
+.tl-canvas *,
+.tl-shapes,
+.tl-shapes * {
+  cursor: inherit !important;
+}
+
+.tl-container[data-state="select"] .tl-canvas,
+.tl-container:not([data-state]) .tl-canvas {
+  cursor: default !important;
+}
+
+.tl-container[data-state="geo"] .tl-canvas {
+  cursor: crosshair !important;
+}
+
+.tl-container[data-state="text"] .tl-canvas {
+  cursor: text !important;
+}
+
+/* Override any inline cursor:none styles */
+[style*="cursor: none"],
+[style*="cursor:none"] {
+  cursor: inherit !important;
+}
+
+/* Hide tldraw watermark for open-source non-commercial use */
+.tl-watermark_SEE-LICENSE {
+  display: none !important;
+}
