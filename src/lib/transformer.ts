@@ -5,7 +5,7 @@ import { SCHEMA_VERSION, MAIN_FRAME_ID } from './constants'
 type TLShapeWithMeta = TLShape & { meta: KovarMeta }
 
 interface TransformOptions {
-  frameId?: string
+  pageId?: string
   assets?: Map<string, string> // assetId -> src (base64 or url)
 }
 
@@ -108,6 +108,7 @@ function shapeToNode(shape: TLShapeWithMeta, assets?: Map<string, string>): Kova
 
 /**
  * Builds a tree structure from flat shapes using parentId.
+ * parentId can be a shape id or page id.
  */
 function buildTree(
   shapes: TLShapeWithMeta[],
@@ -115,7 +116,7 @@ function buildTree(
   assets?: Map<string, string>
 ): KovarNode[] {
   return shapes
-    .filter((s) => s.parentId === parentId)
+    .filter((s) => s.parentId === parentId && s.id !== `shape:${MAIN_FRAME_ID}`)
     .sort((a, b) => (a.index > b.index ? 1 : -1))
     .map((shape) => {
       const node = shapeToNode(shape, assets)
@@ -129,22 +130,29 @@ function buildTree(
 
 /**
  * Transforms tldraw shapes to Kovar Schema.
+ * Main Window is treated as visual root - shapes on page become children of root.
  */
 export function transformToSchema(
   shapes: TLShape[],
   options: TransformOptions = {}
 ): KovarSchema {
-  const frameId = options.frameId || `shape:${MAIN_FRAME_ID}`
+  const frameId = `shape:${MAIN_FRAME_ID}`
   const typedShapes = shapes as TLShapeWithMeta[]
 
-  // Find the main frame
+  // Find the main frame for dimensions
   const mainFrame = typedShapes.find((s) => s.id === frameId)
   if (!mainFrame) {
     throw new Error(`Main frame not found: ${frameId}`)
   }
 
   const frameProps = mainFrame.props as Record<string, unknown>
-  const children = buildTree(typedShapes, frameId, options.assets)
+
+  // Get page id - shapes on page have parentId === pageId
+  // Try to find from shapes or use provided option
+  const pageId = options.pageId || findPageId(typedShapes)
+
+  // Build tree from page-level shapes (excluding Main Window)
+  const children = buildTree(typedShapes, pageId, options.assets)
 
   const root: KovarNode = {
     id: 'root',
@@ -162,6 +170,24 @@ export function transformToSchema(
     version: SCHEMA_VERSION,
     root,
   }
+}
+
+/**
+ * Finds the page id from shapes.
+ */
+function findPageId(shapes: TLShapeWithMeta[]): string {
+  // Main frame's parentId should be the page id
+  const mainFrame = shapes.find((s) => s.id === `shape:${MAIN_FRAME_ID}`)
+  if (mainFrame) {
+    return mainFrame.parentId as string
+  }
+  // Fallback: find any shape with page:* parentId
+  for (const shape of shapes) {
+    if (typeof shape.parentId === 'string' && shape.parentId.startsWith('page:')) {
+      return shape.parentId
+    }
+  }
+  return 'page:page'
 }
 
 /**
@@ -194,7 +220,7 @@ export function schemaToHtml(schema: KovarSchema): string {
 
     // Map type to HTML tag
     let tag: string
-    let content = node.text || ''
+    const content = node.text || ''
 
     switch (node.type) {
       case 'text':

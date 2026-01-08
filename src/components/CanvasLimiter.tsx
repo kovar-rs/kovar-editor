@@ -1,10 +1,12 @@
 import { useEffect, useCallback } from 'react'
 import { useEditor, createShapeId } from 'tldraw'
-import { getCanvasConfig, MAIN_FRAME_ID } from '../lib/constants'
+import { MAIN_FRAME_ID } from '../lib/constants'
+
+const FRAME_PADDING = 20
 
 /**
- * Initializes the main design frame and constrains camera movement.
- * Frame auto-resizes to fit browser window.
+ * Initializes the main design frame to fill the tldraw viewport with padding.
+ * Frame is locked and camera zooms to fit it.
  */
 export function CanvasLimiter() {
   const editor = useEditor()
@@ -12,7 +14,17 @@ export function CanvasLimiter() {
   const updateFrame = useCallback(() => {
     if (!editor) return
 
-    const config = getCanvasConfig()
+    // Get the viewport bounds (now tldraw only fills the center area)
+    const viewportBounds = editor.getViewportScreenBounds()
+
+    // Frame slightly smaller than viewport so borders are visible
+    const frameWidth = viewportBounds.w - FRAME_PADDING * 2
+    const frameHeight = viewportBounds.h - FRAME_PADDING * 2
+
+    // Frame at origin
+    const frameX = 0
+    const frameY = 0
+
     const frameId = createShapeId(MAIN_FRAME_ID)
     const existingFrame = editor.getShape(frameId)
 
@@ -21,10 +33,10 @@ export function CanvasLimiter() {
         {
           id: frameId,
           type: 'frame',
-          props: {
-            w: config.width,
-            h: config.height,
-          },
+          x: frameX,
+          y: frameY,
+          isLocked: true,
+          props: { w: frameWidth, h: frameHeight },
         },
       ])
     } else {
@@ -32,49 +44,48 @@ export function CanvasLimiter() {
         {
           id: frameId,
           type: 'frame',
-          x: 0,
-          y: 0,
-          props: {
-            w: config.width,
-            h: config.height,
-            name: config.name,
-          },
+          x: frameX,
+          y: frameY,
+          isLocked: true,
+          props: { w: frameWidth, h: frameHeight, name: 'Main Window' },
         },
       ])
     }
 
-    const padding = 50
-    editor.setCameraOptions({
-      constraints: {
-        bounds: {
-          x: -padding,
-          y: -padding,
-          w: config.width + padding * 2,
-          h: config.height + padding * 2,
-        },
-        padding: { x: padding, y: padding },
-        origin: { x: 0.5, y: 0.5 },
-        initialZoom: 'fit-max',
-        baseZoom: 'fit-max',
-        behavior: 'contain',
-      },
-    })
-
+    // Zoom to fit the frame with some padding
     editor.zoomToBounds(
-      { x: 0, y: 0, w: config.width, h: config.height },
-      { animation: { duration: 200 } }
+      { x: frameX, y: frameY, w: frameWidth, h: frameHeight },
+      { animation: { duration: 0 }, inset: FRAME_PADDING }
     )
+
+    // Lock camera
+    editor.setCameraOptions({
+      isLocked: true,
+      wheelBehavior: 'none',
+      panSpeed: 0,
+      zoomSpeed: 0,
+    })
   }, [editor])
 
   useEffect(() => {
-    updateFrame()
+    // Initial update with delay to ensure editor is ready
+    setTimeout(updateFrame, 100)
 
-    const handleResize = () => {
-      updateFrame()
+    // Window resize
+    window.addEventListener('resize', updateFrame)
+
+    // Listen for panel width changes via storage events
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key?.includes('panel-width')) {
+        setTimeout(updateFrame, 50)
+      }
     }
+    window.addEventListener('storage', handleStorage)
 
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('resize', updateFrame)
+      window.removeEventListener('storage', handleStorage)
+    }
   }, [updateFrame])
 
   return null

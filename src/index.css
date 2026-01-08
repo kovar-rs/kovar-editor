@@ -43,3 +43,10 @@ body,
 .tl-watermark_SEE-LICENSE {
   display: none !important;
 }
+
+/* Main Window frame label: smaller and positioned inside */
+.tl-frame-label {
+  font-size: 10px !important;
+  transform: translateY(10px) !important;
+  opacity: 0.6 !important;
+}

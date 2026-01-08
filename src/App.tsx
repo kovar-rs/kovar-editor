@@ -2,31 +2,43 @@ import { Tldraw, DefaultDashStyle } from 'tldraw'
 import type { Editor } from 'tldraw'
 import 'tldraw/tldraw.css'
 import './lib/constants'
+import { Layout, TopBarPortal, LeftPanelPortal, RightPanelPortal } from './components/layout/Layout'
+import { TopBar } from './components/layout/TopBar'
+import { LeftPanel } from './components/layout/LeftPanel'
+import { RightPanel } from './components/layout/RightPanel'
 import { CanvasLimiter } from './components/CanvasLimiter'
 import { Toolbar } from './components/Toolbar'
-import { PropertiesPanel } from './components/PropertiesPanel'
 import { ContextMenu } from './components/ContextMenu'
 import { KeyboardShortcuts } from './components/KeyboardShortcuts'
 import { CursorFix } from './components/CursorFix'
-import { ActionBar } from './components/ActionBar'
 import { ShapeNaming } from './components/ShapeNaming'
 import { BorderWidthSync } from './components/BorderWidthSync'
 import { ConfirmDialogProvider } from './components/ConfirmDialog'
 
 /**
- * Inner components that require editor context.
+ * Inner components that require editor context and use portals.
  */
 function EditorUI() {
   return (
     <>
+      {/* Portal content to layout slots */}
+      <TopBarPortal>
+        <TopBar />
+      </TopBarPortal>
+      <LeftPanelPortal>
+        <LeftPanel />
+      </LeftPanelPortal>
+      <RightPanelPortal>
+        <RightPanel />
+      </RightPanelPortal>
+
+      {/* Canvas components */}
       <CanvasLimiter />
       <ShapeNaming />
       <KeyboardShortcuts />
       <CursorFix />
       <BorderWidthSync />
       <Toolbar />
-      <ActionBar />
-      <PropertiesPanel />
       <ContextMenu />
     </>
   )
@@ -42,11 +54,11 @@ function handleMount(editor: Editor) {
 export default function App() {
   return (
     <ConfirmDialogProvider>
-      <div style={{ position: 'fixed', inset: 0 }}>
+      <Layout>
         <Tldraw hideUi onMount={handleMount}>
           <EditorUI />
         </Tldraw>
-      </div>
+      </Layout>
     </ConfirmDialogProvider>
   )
 }
