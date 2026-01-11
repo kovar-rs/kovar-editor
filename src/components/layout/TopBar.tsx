@@ -4,17 +4,19 @@ import { transformToSchema, schemaToHtml } from '../../lib/transformer'
 import { useConfirm } from '../../hooks/useConfirm'
 import { CodePreviewModal } from '../CodePreview'
 import { MAIN_FRAME_ID } from '../../lib/constants'
+import { saveHtml } from '../../lib/api'
 
 type ExportType = 'all' | 'json' | 'schema' | 'html'
 
 /**
- * Top action bar with import, export, preview, and clear buttons.
+ * Top action bar with import, export, preview, save, and clear buttons.
  */
 export function TopBar() {
   const editor = useEditor()
   const confirm = useConfirm()
   const [exportOpen, setExportOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const exportTimeoutRef = useRef<number | null>(null)
 
@@ -136,6 +138,24 @@ export function TopBar() {
     }
   }
 
+  const handleSave = async () => {
+    if (saving) return
+
+    setSaving(true)
+    try {
+      const data = getExportData()
+      const result = await saveHtml(data.html)
+      if (result.success) {
+        console.log('Saved successfully:', result.path)
+      }
+    } catch (e) {
+      console.error('Save error:', e)
+      alert('保存失败: ' + (e as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return (
     <>
       <input
@@ -208,6 +228,24 @@ export function TopBar() {
             <span>预览</span>
           </button>
 
+          {/* Save to CLI */}
+          <button
+            style={{
+              ...styles.button,
+              ...(saving ? styles.buttonDisabled : styles.buttonPrimary),
+            }}
+            onClick={handleSave}
+            disabled={saving}
+            title="保存到 kovar-cli"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+              <polyline points="17 21 17 13 7 13 7 21" />
+              <polyline points="7 3 7 8 15 8" />
+            </svg>
+            <span>{saving ? '保存中...' : '保存'}</span>
+          </button>
+
           {/* Clear */}
           <button style={styles.button} onClick={handleClear} title="清除所有组件">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -261,6 +299,15 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
     cursor: 'pointer',
     transition: 'background-color 0.15s',
+  },
+  buttonPrimary: {
+    backgroundColor: '#007acc',
+    color: 'white',
+  },
+  buttonDisabled: {
+    backgroundColor: '#ccc',
+    color: '#888',
+    cursor: 'not-allowed',
   },
   dropdown: {
     position: 'absolute',
