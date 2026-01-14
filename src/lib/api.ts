@@ -35,6 +35,26 @@ export async function saveHtml(html: string, filename?: string): Promise<SaveRes
 }
 
 /**
+ * Save schema to kovar-cli server as .kovar.json file.
+ * @param schema - KovarSchema object
+ */
+export async function saveSchema(schema: object): Promise<SaveResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/schema`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ schema }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Save schema failed: ${response.status} ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
+/**
  * Check if kovar-cli server is available.
  */
 export async function checkServerHealth(): Promise<boolean> {

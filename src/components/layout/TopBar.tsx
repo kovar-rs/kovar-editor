@@ -4,7 +4,7 @@ import { transformToSchema, schemaToHtml } from '../../lib/transformer'
 import { useConfirm } from '../../hooks/useConfirm'
 import { CodePreviewModal } from '../CodePreview'
 import { MAIN_FRAME_ID } from '../../lib/constants'
-import { saveHtml } from '../../lib/api'
+import { saveHtml, saveSchema } from '../../lib/api'
 
 type ExportType = 'all' | 'json' | 'schema' | 'html'
 
@@ -17,8 +17,10 @@ export function TopBar() {
   const [exportOpen, setExportOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [saveOpen, setSaveOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const exportTimeoutRef = useRef<number | null>(null)
+  const saveTimeoutRef = useRef<number | null>(null)
 
   const downloadFile = (content: string, filename: string, type: string) => {
     const blob = new Blob([content], { type })
@@ -142,6 +144,7 @@ export function TopBar() {
     if (saving) return
 
     setSaving(true)
+    setSaveOpen(false)
     try {
       const data = getExportData()
       const result = await saveHtml(data.html)
@@ -154,6 +157,40 @@ export function TopBar() {
     } finally {
       setSaving(false)
     }
+  }
+
+  const handleSaveSchema = async () => {
+    if (saving) return
+
+    setSaving(true)
+    setSaveOpen(false)
+    try {
+      const shapes = editor.getCurrentPageShapes()
+      const schema = transformToSchema([...shapes])
+      const result = await saveSchema(schema)
+      if (result.success) {
+        console.log('Schema saved:', result.path)
+      }
+    } catch (e) {
+      console.error('Save schema error:', e)
+      alert('保存 Schema 失败: ' + (e as Error).message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSaveMouseEnter = () => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current)
+      saveTimeoutRef.current = null
+    }
+    setSaveOpen(true)
+  }
+
+  const handleSaveMouseLeave = () => {
+    saveTimeoutRef.current = window.setTimeout(() => {
+      setSaveOpen(false)
+    }, 150)
   }
 
   return (
@@ -228,23 +265,49 @@ export function TopBar() {
             <span>预览</span>
           </button>
 
-          {/* Save to CLI */}
-          <button
-            style={{
-              ...styles.button,
-              ...(saving ? styles.buttonDisabled : styles.buttonPrimary),
-            }}
-            onClick={handleSave}
-            disabled={saving}
-            title="保存到 kovar-cli"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-              <polyline points="17 21 17 13 7 13 7 21" />
-              <polyline points="7 3 7 8 15 8" />
-            </svg>
-            <span>{saving ? '保存中...' : '保存'}</span>
-          </button>
+          {/* Save to CLI - Split Button */}
+          <div style={styles.splitButton}>
+            <button
+              style={{
+                ...styles.button,
+                borderRadius: '4px 0 0 4px',
+                paddingRight: 6,
+              }}
+              onClick={handleSave}
+              disabled={saving}
+              title="保存 HTML 到 kovar-cli"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                <polyline points="17 21 17 13 7 13 7 21" />
+                <polyline points="7 3 7 8 15 8" />
+              </svg>
+              <span>{saving ? '保存中...' : '保存 HTML'}</span>
+            </button>
+            <div
+              style={{ position: 'relative' }}
+              onMouseEnter={handleSaveMouseEnter}
+              onMouseLeave={handleSaveMouseLeave}
+            >
+              <button
+                style={styles.splitArrow}
+                disabled={saving}
+                title="更多保存选项"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+
+              {saveOpen && !saving && (
+                <div style={styles.dropdown}>
+                  <div style={styles.menuItem} onClick={handleSaveSchema}>
+                    保存 Schema
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Clear */}
           <button style={styles.button} onClick={handleClear} title="清除所有组件">
@@ -332,5 +395,20 @@ const styles: Record<string, React.CSSProperties> = {
     height: 1,
     backgroundColor: '#eee',
     margin: '4px 0',
+  },
+  splitButton: {
+    display: 'flex',
+    alignItems: 'stretch',
+  },
+  splitArrow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '6px 4px',
+    border: 'none',
+    borderRadius: '0 4px 4px 0',
+    backgroundColor: 'transparent',
+    color: '#555',
+    cursor: 'pointer',
   },
 }
