@@ -22,18 +22,23 @@ export function TabContainer({ tabs, defaultTab }: TabContainerProps) {
   return (
     <div style={styles.container}>
       <div style={styles.tabBar}>
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            style={{
-              ...styles.tab,
-              ...(activeTab === tab.id ? styles.activeTab : {}),
-            }}
-            onClick={() => setActiveTab(tab.id)}
-          >
-            {tab.label}
-          </button>
-        ))}
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id
+          return (
+            <button
+              key={tab.id}
+              style={{
+                ...styles.tab,
+                borderBottomColor: isActive ? '#007acc' : '#e0e0e0',
+                backgroundColor: isActive ? '#fff' : 'transparent',
+                color: isActive ? '#007acc' : '#666',
+              }}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              {tab.label}
+            </button>
+          )
+        })}
       </div>
       <div style={styles.content}>{activeContent}</div>
     </div>
@@ -56,18 +61,14 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     padding: '8px 12px',
     border: 'none',
-    borderBottom: '2px solid transparent',
+    borderBottom: '2px solid #e0e0e0',
     backgroundColor: 'transparent',
     color: '#666',
     fontSize: 12,
     fontWeight: 500,
     cursor: 'pointer',
     transition: 'all 0.15s',
-  },
-  activeTab: {
-    color: '#007acc',
-    borderBottomColor: '#007acc',
-    backgroundColor: '#fff',
+    marginBottom: -1,
   },
   content: {
     flex: 1,

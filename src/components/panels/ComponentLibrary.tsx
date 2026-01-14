@@ -1,26 +1,32 @@
-import { useEditor, GeoShapeGeoStyle } from 'tldraw'
+import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { useEditor, useValue, GeoShapeGeoStyle } from 'tldraw'
 
 interface ComponentItem {
   id: string
-  label: string
+  labelKey: string
   icon: string
   action: 'tool' | 'upload'
   tool?: string
 }
 
 const COMPONENTS: ComponentItem[] = [
-  { id: 'select', label: '选择', icon: '↖', action: 'tool', tool: 'select' },
-  { id: 'geo', label: '矩形', icon: '□', action: 'tool', tool: 'geo' },
-  { id: 'frame', label: '框架', icon: '▢', action: 'tool', tool: 'frame' },
-  { id: 'text', label: '文本', icon: 'T', action: 'tool', tool: 'text' },
-  { id: 'image', label: '图片', icon: '▣', action: 'upload' },
+  { id: 'select', labelKey: 'tool.select', icon: '↖', action: 'tool', tool: 'select' },
+  { id: 'geo', labelKey: 'tool.geo', icon: '□', action: 'tool', tool: 'geo' },
+  { id: 'frame', labelKey: 'tool.frame', icon: '▢', action: 'tool', tool: 'frame' },
+  { id: 'text', labelKey: 'tool.text', icon: 'T', action: 'tool', tool: 'text' },
+  { id: 'image', labelKey: 'tool.image', icon: '▣', action: 'upload' },
 ]
 
 /**
  * Component library panel showing available component types.
  */
 export function ComponentLibrary() {
+  const { t } = useTranslation()
   const editor = useEditor()
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
+
+  const currentTool = useValue('current tool', () => editor.getCurrentToolId(), [editor])
 
   const handleClick = (item: ComponentItem) => {
     if (item.action === 'tool' && item.tool) {
@@ -49,20 +55,35 @@ export function ComponentLibrary() {
     }
   }
 
+  const isActive = (item: ComponentItem) => {
+    if (item.action !== 'tool') return false
+    return currentTool === item.tool
+  }
+
   return (
     <div style={styles.container}>
       <div style={styles.grid}>
-        {COMPONENTS.map((item) => (
-          <button
-            key={item.id}
-            style={styles.item}
-            onClick={() => handleClick(item)}
-            title={item.label}
-          >
-            <span style={styles.icon}>{item.icon}</span>
-            <span style={styles.label}>{item.label}</span>
-          </button>
-        ))}
+        {COMPONENTS.map((item) => {
+          const active = isActive(item)
+          const hovered = hoveredId === item.id
+          return (
+            <button
+              key={item.id}
+              style={{
+                ...styles.item,
+                borderColor: active ? '#007acc' : hovered ? '#ccc' : '#e0e0e0',
+                backgroundColor: active ? '#e8f4fc' : hovered ? '#f5f5f5' : '#fff',
+              }}
+              onClick={() => handleClick(item)}
+              onMouseEnter={() => setHoveredId(item.id)}
+              onMouseLeave={() => setHoveredId(null)}
+              title={t(item.labelKey)}
+            >
+              <span style={styles.icon}>{item.icon}</span>
+              <span style={styles.label}>{t(item.labelKey)}</span>
+            </button>
+          )
+        })}
       </div>
     </div>
   )
@@ -88,6 +109,7 @@ const styles: Record<string, React.CSSProperties> = {
     backgroundColor: '#fff',
     cursor: 'pointer',
     transition: 'all 0.15s',
+    outline: 'none',
   },
   icon: {
     fontSize: 20,

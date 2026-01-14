@@ -1,12 +1,15 @@
 import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react'
-import { useEditor, useValue, createShapeId } from 'tldraw'
-import type { TLShape, TLShapeId } from 'tldraw'
+import { useTranslation } from 'react-i18next'
+import { useEditor, useValue, createShapeId, GeoShapeGeoStyle, toRichText } from 'tldraw'
+import type { TLShape, TLShapeId, Vec } from 'tldraw'
 import { MAIN_FRAME_ID } from '../lib/constants'
 
 interface MenuPosition {
   x: number
   y: number
 }
+
+type SubmenuType = 'add' | 'reparent' | null
 
 /**
  * Gets the canvas container bounds for boundary calculations.
@@ -43,9 +46,11 @@ function adjustPosition(
  * Context menu for shape operations including reparenting.
  */
 export function ContextMenu() {
+  const { t } = useTranslation()
   const editor = useEditor()
   const [menuPosition, setMenuPosition] = useState<MenuPosition | null>(null)
-  const [submenuOpen, setSubmenuOpen] = useState(false)
+  const [canvasPoint, setCanvasPoint] = useState<Vec | null>(null)
+  const [openSubmenu, setOpenSubmenu] = useState<SubmenuType>(null)
   const [hoveredShapeId, setHoveredShapeId] = useState<TLShapeId | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
   const submenuRef = useRef<HTMLDivElement>(null)
@@ -90,7 +95,7 @@ export function ContextMenu() {
 
   // Adjust submenu position after render to fit within canvas bounds
   useLayoutEffect(() => {
-    if (!submenuOpen || !submenuRef.current || !menuRef.current) return
+    if (!openSubmenu || !submenuRef.current || !menuRef.current) return
 
     const bounds = getCanvasBounds()
     if (!bounds) return
@@ -118,32 +123,36 @@ export function ContextMenu() {
     left = Math.max(bounds.left + padding, Math.min(left, bounds.right - submenuRect.width - padding))
 
     // Calculate vertical position - align with trigger item, constrain to bounds
-    const triggerItem = menuRef.current.querySelector('[data-submenu-trigger]') as HTMLElement
+    const triggerSelector = openSubmenu === 'add' ? '[data-submenu-add]' : '[data-submenu-reparent]'
+    const triggerItem = menuRef.current.querySelector(triggerSelector) as HTMLElement
     let top = triggerItem ? triggerItem.getBoundingClientRect().top : menuRect.top
     top = Math.max(bounds.top + padding, Math.min(top, bounds.bottom - submenuRect.height - padding))
 
     submenuRef.current.style.left = `${left}px`
     submenuRef.current.style.top = `${top}px`
     submenuRef.current.style.visibility = 'visible'
-  }, [submenuOpen])
+  }, [openSubmenu])
 
   const handleContextMenu = useCallback(
     (e: MouseEvent) => {
-      // Only show menu if we have selected shapes (excluding main frame)
-      const validSelection = selectedShapes.filter((s) => s.id !== mainFrameId)
-      if (validSelection.length === 0) return
-
+      // Always prevent default browser menu within canvas
       e.preventDefault()
+
+      // Store canvas point for adding shapes
+      const point = editor.screenToPage({ x: e.clientX, y: e.clientY })
+      setCanvasPoint(point)
+
       setMenuPosition({ x: e.clientX, y: e.clientY })
-      setSubmenuOpen(false)
+      setOpenSubmenu(null)
     },
-    [selectedShapes, mainFrameId]
+    [editor]
   )
 
   const closeMenu = useCallback(() => {
     setMenuPosition(null)
-    setSubmenuOpen(false)
+    setOpenSubmenu(null)
     setHoveredShapeId(null)
+    setCanvasPoint(null)
     editor.setHintingShapes([])
   }, [editor])
 
@@ -234,8 +243,82 @@ export function ContextMenu() {
     closeMenu()
   }
 
+  // Add shape handlers
+  const handleAddRectangle = () => {
+    if (!canvasPoint) return
+    const id = createShapeId()
+    editor.setStyleForNextShapes(GeoShapeGeoStyle, 'rectangle')
+    editor.createShape({
+      id,
+      type: 'geo',
+      x: canvasPoint.x,
+      y: canvasPoint.y,
+      props: { w: 100, h: 100 },
+    })
+    editor.select(id)
+    closeMenu()
+  }
+
+  const handleAddFrame = () => {
+    if (!canvasPoint) return
+    const id = createShapeId()
+    editor.createShape({
+      id,
+      type: 'frame',
+      x: canvasPoint.x,
+      y: canvasPoint.y,
+      props: { w: 200, h: 150 },
+    })
+    editor.select(id)
+    closeMenu()
+  }
+
+  const handleAddText = () => {
+    if (!canvasPoint) return
+    const id = createShapeId()
+    editor.createShape({
+      id,
+      type: 'text',
+      x: canvasPoint.x,
+      y: canvasPoint.y,
+      props: {
+        richText: toRichText('Text'),
+      },
+    })
+    editor.select(id)
+    closeMenu()
+  }
+
+  const handleAddImage = () => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0]
+      if (file && canvasPoint) {
+        const asset = await editor.getAssetForExternalContent({ type: 'file', file })
+        if (asset) {
+          const id = createShapeId()
+          editor.createAssets([asset])
+          editor.createShape({
+            id,
+            type: 'image',
+            x: canvasPoint.x,
+            y: canvasPoint.y,
+            props: { assetId: asset.id, w: 200, h: 200 },
+          })
+          editor.select(id)
+        }
+      }
+      closeMenu()
+    }
+    input.click()
+  }
+
   if (!menuPosition) return null
 
+  const validSelection = selectedShapes.filter((s) => s.id !== mainFrameId)
+  const hasSelection = validSelection.length > 0
   const currentParentId = selectedShapes[0]?.parentId
   const hasParent = currentParentId && currentParentId !== mainFrameId
 
@@ -254,119 +337,185 @@ export function ContextMenu() {
           visibility: 'hidden',
         }}
       >
+        {/* Add Component submenu - always visible */}
         <div
-          style={styles.menuItem}
-          onClick={handleDuplicate}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-        >
-          复制 <span style={styles.shortcut}>⌘D</span>
-        </div>
-        <div
-          style={styles.menuItem}
-          onClick={handleDelete}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-        >
-          删除 <span style={styles.shortcut}>⌫</span>
-        </div>
-
-        <div style={styles.divider} />
-
-        <div
-          style={styles.menuItem}
-          onClick={handleBringToFront}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-        >
-          置于顶层 <span style={styles.shortcut}>⌘]</span>
-        </div>
-        <div
-          style={styles.menuItem}
-          onClick={handleSendToBack}
-          onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
-          onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-        >
-          置于底层 <span style={styles.shortcut}>⌘[</span>
-        </div>
-
-        <div style={styles.divider} />
-
-        {/* Reparent submenu */}
-        <div
-          data-submenu-trigger
+          data-submenu-add
           style={{ ...styles.menuItem, ...styles.submenuTrigger }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = '#f5f5f5'
-            setSubmenuOpen(true)
+            setOpenSubmenu('add')
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent'
-            // Only close if mouse didn't move to submenu
             setTimeout(() => {
               if (!submenuRef.current?.matches(':hover')) {
-                setSubmenuOpen(false)
+                setOpenSubmenu(null)
               }
             }, 50)
           }}
         >
-          设为子组件...
+          {t('context.addComponent')}
           <span style={styles.arrow}>▶</span>
         </div>
 
-        {submenuOpen && (
+        {openSubmenu === 'add' && (
           <div
             ref={submenuRef}
-            style={{
-              ...styles.submenu,
-              visibility: 'hidden',
-            }}
-            onMouseEnter={() => setSubmenuOpen(true)}
-            onMouseLeave={() => setSubmenuOpen(false)}
+            style={{ ...styles.submenu, visibility: 'hidden' }}
+            onMouseEnter={() => setOpenSubmenu('add')}
+            onMouseLeave={() => setOpenSubmenu(null)}
           >
-            {potentialParents.length === 0 ? (
-              <div style={{ ...styles.menuItem, ...styles.disabled }}>
-                无可用容器
-              </div>
-            ) : (
-              potentialParents.map((shape) => {
-                const meta = shape.meta as Record<string, string> | undefined
-                const label = meta?.kovar_id || shape.id.replace('shape:', '')
-                const isHovered = hoveredShapeId === shape.id
-                return (
-                  <div
-                    key={shape.id}
-                    style={{
-                      ...styles.menuItem,
-                      backgroundColor: isHovered ? '#e8f4fc' : 'transparent',
-                    }}
-                    onClick={() => handleReparent(shape.id)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#e8f4fc'
-                      handleShapeHover(shape.id as TLShapeId)
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = 'transparent'
-                      handleShapeHover(null)
-                    }}
-                  >
-                    {label}
-                  </div>
-                )
-              })
-            )}
+            <div
+              style={styles.menuItem}
+              onClick={handleAddRectangle}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              <span style={styles.menuIcon}>□</span> {t('tool.geo')}
+            </div>
+            <div
+              style={styles.menuItem}
+              onClick={handleAddFrame}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              <span style={styles.menuIcon}>▢</span> {t('tool.frame')}
+            </div>
+            <div
+              style={styles.menuItem}
+              onClick={handleAddText}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              <span style={styles.menuIcon}>T</span> {t('tool.text')}
+            </div>
+            <div
+              style={styles.menuItem}
+              onClick={handleAddImage}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              <span style={styles.menuIcon}>▣</span> {t('tool.image')}
+            </div>
           </div>
         )}
 
-        {hasParent && (
-          <div
-            style={styles.menuItem}
-            onClick={handleUnparent}
-            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
-          >
-            取消嵌套
-          </div>
+        {/* Selection-specific actions */}
+        {hasSelection && (
+          <>
+            <div style={styles.divider} />
+
+            <div
+              style={styles.menuItem}
+              onClick={handleDuplicate}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              {t('context.duplicate')} <span style={styles.shortcut}>⌘D</span>
+            </div>
+            <div
+              style={styles.menuItem}
+              onClick={handleDelete}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              {t('context.delete')} <span style={styles.shortcut}>⌫</span>
+            </div>
+
+            <div style={styles.divider} />
+
+            <div
+              style={styles.menuItem}
+              onClick={handleBringToFront}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              {t('context.bringToFront')} <span style={styles.shortcut}>⌘]</span>
+            </div>
+            <div
+              style={styles.menuItem}
+              onClick={handleSendToBack}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+            >
+              {t('context.sendToBack')} <span style={styles.shortcut}>⌘[</span>
+            </div>
+
+            <div style={styles.divider} />
+
+            {/* Reparent submenu */}
+            <div
+              data-submenu-reparent
+              style={{ ...styles.menuItem, ...styles.submenuTrigger }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#f5f5f5'
+                setOpenSubmenu('reparent')
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent'
+                setTimeout(() => {
+                  if (!submenuRef.current?.matches(':hover')) {
+                    setOpenSubmenu(null)
+                  }
+                }, 50)
+              }}
+            >
+              {t('context.setAsChild')}
+              <span style={styles.arrow}>▶</span>
+            </div>
+
+            {openSubmenu === 'reparent' && (
+              <div
+                ref={submenuRef}
+                style={{ ...styles.submenu, visibility: 'hidden' }}
+                onMouseEnter={() => setOpenSubmenu('reparent')}
+                onMouseLeave={() => setOpenSubmenu(null)}
+              >
+                {potentialParents.length === 0 ? (
+                  <div style={{ ...styles.menuItem, ...styles.disabled }}>
+                    {t('context.noContainer')}
+                  </div>
+                ) : (
+                  potentialParents.map((shape) => {
+                    const meta = shape.meta as Record<string, string> | undefined
+                    const label = meta?.kovar_id || shape.id.replace('shape:', '')
+                    const isHovered = hoveredShapeId === shape.id
+                    return (
+                      <div
+                        key={shape.id}
+                        style={{
+                          ...styles.menuItem,
+                          backgroundColor: isHovered ? '#e8f4fc' : 'transparent',
+                        }}
+                        onClick={() => handleReparent(shape.id)}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#e8f4fc'
+                          handleShapeHover(shape.id as TLShapeId)
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent'
+                          handleShapeHover(null)
+                        }}
+                      >
+                        {label}
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            )}
+
+            {hasParent && (
+              <div
+                style={styles.menuItem}
+                onClick={handleUnparent}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#f5f5f5')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+              >
+                {t('context.unnest')}
+              </div>
+            )}
+          </>
         )}
       </div>
     </>
@@ -419,6 +568,10 @@ const styles: Record<string, React.CSSProperties> = {
   arrow: {
     fontSize: 10,
     color: '#666',
+  },
+  menuIcon: {
+    marginRight: 8,
+    fontSize: 14,
   },
   submenu: {
     position: 'fixed',

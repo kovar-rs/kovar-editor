@@ -1,13 +1,17 @@
+import { useTranslation } from 'react-i18next'
+
 /**
  * Layer tree panel placeholder (coming soon).
  */
 export function LayerTree() {
+  const { t } = useTranslation()
+
   return (
     <div style={styles.container}>
       <div style={styles.placeholder}>
         <span style={styles.icon}>🗂</span>
-        <span style={styles.text}>层级管理</span>
-        <span style={styles.soon}>即将推出</span>
+        <span style={styles.text}>{t('layers.title')}</span>
+        <span style={styles.soon}>{t('layers.comingSoon')}</span>
       </div>
     </div>
   )

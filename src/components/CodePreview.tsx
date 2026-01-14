@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { useEditor, getSnapshot } from 'tldraw'
+import { useTranslation } from 'react-i18next'
+import { useEditor, getSnapshot, useValue } from 'tldraw'
 import { transformToSchema, schemaToHtml } from '../lib/transformer'
 
 interface CodePreviewProps {
@@ -14,45 +15,49 @@ type TabType = 'json' | 'schema' | 'html'
  * IDE-style code preview modal with three panels.
  */
 export function CodePreviewModal({ isOpen, onClose }: CodePreviewProps) {
+  const { t } = useTranslation()
   const editor = useEditor()
   const [activeTab, setActiveTab] = useState<TabType>('schema')
-  const [code, setCode] = useState({ json: '', schema: '', html: '' })
 
-  useEffect(() => {
-    if (isOpen) {
-      try {
-        const snapshot = getSnapshot(editor.store)
-        const jsonString = JSON.stringify(snapshot, null, 2)
+  // Subscribe to shape changes to trigger re-computation
+  const shapes = useValue('shapes', () => editor.getCurrentPageShapes(), [editor])
 
-        // Build assets map from snapshot
-        const assets = new Map<string, string>()
-        const store = snapshot.document?.store || {}
-        for (const [id, record] of Object.entries(store)) {
-          if (id.startsWith('asset:')) {
-            const asset = record as { props?: { src?: string } }
-            if (asset.props?.src) {
-              assets.set(id, asset.props.src)
-            }
+  // Compute code using useMemo instead of useEffect + setState
+  const code = useMemo(() => {
+    if (!isOpen) {
+      return { json: '', schema: '', html: '' }
+    }
+
+    try {
+      const snapshot = getSnapshot(editor.store)
+      const jsonString = JSON.stringify(snapshot, null, 2)
+
+      // Build assets map from snapshot
+      const assets = new Map<string, string>()
+      const store = snapshot.document?.store || {}
+      for (const [id, record] of Object.entries(store)) {
+        if (id.startsWith('asset:')) {
+          const asset = record as { props?: { src?: string } }
+          if (asset.props?.src) {
+            assets.set(id, asset.props.src)
           }
         }
+      }
 
-        const shapes = editor.getCurrentPageShapes()
-        const schema = transformToSchema([...shapes], { assets })
-        const schemaString = JSON.stringify(schema, null, 2)
+      const schema = transformToSchema([...shapes], { assets })
+      const schemaString = JSON.stringify(schema, null, 2)
+      const html = schemaToHtml(schema)
 
-        const html = schemaToHtml(schema)
-
-        setCode({ json: jsonString, schema: schemaString, html })
-      } catch (e) {
-        console.error('Code preview error:', e)
-        setCode({
-          json: '// Error loading JSON',
-          schema: '// Error: ' + (e as Error).message,
-          html: '<!-- Error -->',
-        })
+      return { json: jsonString, schema: schemaString, html }
+    } catch (e) {
+      console.error('Code preview error:', e)
+      return {
+        json: '// Error loading JSON',
+        schema: '// Error: ' + (e as Error).message,
+        html: '<!-- Error -->',
       }
     }
-  }, [isOpen, editor])
+  }, [isOpen, editor, shapes])
 
   // Handle escape key
   useEffect(() => {
@@ -101,9 +106,9 @@ export function CodePreviewModal({ isOpen, onClose }: CodePreviewProps) {
             <button
               style={styles.actionButton}
               onClick={() => copyToClipboard(code[activeTab])}
-              title="复制代码"
+              title={t('preview.copyCode')}
             >
-              复制
+              {t('copy')}
             </button>
             <button style={styles.closeButton} onClick={onClose}>
               X
@@ -121,7 +126,7 @@ export function CodePreviewModal({ isOpen, onClose }: CodePreviewProps) {
         {/* Footer */}
         <div style={styles.footer}>
           <span style={styles.lineCount}>
-            {code[activeTab].split('\n').length} 行
+            {code[activeTab].split('\n').length} {t('preview.lines')}
           </span>
         </div>
       </div>
@@ -134,6 +139,7 @@ export function CodePreviewModal({ isOpen, onClose }: CodePreviewProps) {
  * Button to open code preview modal.
  */
 export function CodePreviewButton() {
+  const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
 
   return (
@@ -144,7 +150,7 @@ export function CodePreviewButton() {
         onPointerDown={(e) => e.stopPropagation()}
       >
         <span style={styles.buttonIcon}>&lt;/&gt;</span>
-        代码
+        {t('preview.code')}
       </button>
       <CodePreviewModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
     </>

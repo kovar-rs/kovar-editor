@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useEditor, useValue, STROKE_SIZES } from 'tldraw'
 import type { TLShape } from 'tldraw'
 import type { KovarMeta } from '../../types/kovar'
@@ -30,6 +31,7 @@ function getColorHex(color: string): string {
  * Styles tab showing visual properties.
  */
 export function StylesTab() {
+  const { t } = useTranslation()
   const editor = useEditor()
 
   const selectedShapes = useValue(
@@ -85,7 +87,7 @@ export function StylesTab() {
   if (!selectedShape) {
     return (
       <div style={styles.empty}>
-        {selectedShapes.length === 0 ? '选择一个组件' : '只能编辑单个组件'}
+        {selectedShapes.length === 0 ? t('props.selectOne') : t('props.singleOnly')}
       </div>
     )
   }
@@ -94,7 +96,7 @@ export function StylesTab() {
     <div style={styles.container}>
       {/* Position */}
       <div style={styles.section}>
-        <div style={styles.label}>位置</div>
+        <div style={styles.label}>{t('styles.position')}</div>
         <div style={styles.row}>
           <div style={styles.inputGroup}>
             <span style={styles.inputLabel}>X</span>
@@ -120,7 +122,7 @@ export function StylesTab() {
       {/* Size */}
       {props.w !== undefined && (
         <div style={styles.section}>
-          <div style={styles.label}>大小</div>
+          <div style={styles.label}>{t('styles.size')}</div>
           <div style={styles.row}>
             <div style={styles.inputGroup}>
               <span style={styles.inputLabel}>W</span>
@@ -147,7 +149,7 @@ export function StylesTab() {
       {/* Color */}
       {props.color !== undefined && (
         <div style={styles.section}>
-          <div style={styles.label}>颜色</div>
+          <div style={styles.label}>{t('styles.color')}</div>
           <div style={styles.colorRow}>
             {['black', 'grey', 'light-violet', 'violet', 'blue', 'light-blue', 'yellow', 'orange', 'green', 'light-green', 'light-red', 'red'].map((color) => (
               <button
@@ -168,7 +170,7 @@ export function StylesTab() {
       {/* Fill */}
       {props.fill !== undefined && (
         <div style={styles.section}>
-          <div style={styles.label}>填充</div>
+          <div style={styles.label}>{t('styles.fill')}</div>
           <div style={styles.row}>
             {['none', 'semi', 'solid', 'pattern'].map((fill) => (
               <button
@@ -179,7 +181,7 @@ export function StylesTab() {
                 }}
                 onClick={() => updateProps({ fill })}
               >
-                {fill === 'none' ? '无' : fill === 'semi' ? '半透' : fill === 'solid' ? '实心' : '图案'}
+                {fill === 'none' ? t('styles.fillNone') : fill === 'semi' ? t('styles.fillSemi') : fill === 'solid' ? t('styles.fillSolid') : t('styles.fillPattern')}
               </button>
             ))}
           </div>
@@ -189,7 +191,7 @@ export function StylesTab() {
       {/* Dash */}
       {props.dash !== undefined && (
         <div style={styles.section}>
-          <div style={styles.label}>边框样式</div>
+          <div style={styles.label}>{t('styles.borderStyle')}</div>
           <div style={styles.row}>
             {['draw', 'solid', 'dashed', 'dotted'].map((dash) => (
               <button
@@ -200,7 +202,7 @@ export function StylesTab() {
                 }}
                 onClick={() => updateProps({ dash })}
               >
-                {dash === 'draw' ? '手绘' : dash === 'solid' ? '实线' : dash === 'dashed' ? '虚线' : '点线'}
+                {dash === 'draw' ? t('styles.borderDraw') : dash === 'solid' ? t('styles.borderSolid') : dash === 'dashed' ? t('styles.borderDashed') : t('styles.borderDotted')}
               </button>
             ))}
           </div>
@@ -211,7 +213,7 @@ export function StylesTab() {
       {selectedShape.type === 'geo' && (
         <div style={styles.section}>
           <div style={styles.label}>
-            边框粗细 ({(meta.border_width as number) || 1}px)
+            {t('styles.borderWidth')} ({(meta.border_width as number) || 1}px)
           </div>
           <input
             type="range"
@@ -234,7 +236,7 @@ export function StylesTab() {
 
       {/* Opacity */}
       <div style={styles.section}>
-        <div style={styles.label}>透明度 ({Math.round(selectedShape.opacity * 100)}%)</div>
+        <div style={styles.label}>{t('styles.opacity')} ({Math.round(selectedShape.opacity * 100)}%)</div>
         <input
           type="range"
           min="0"

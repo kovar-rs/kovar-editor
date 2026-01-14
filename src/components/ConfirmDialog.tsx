@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { useTranslation } from 'react-i18next'
 import { ConfirmContext } from '../hooks/useConfirm'
 import type { ConfirmOptions } from '../hooks/useConfirm'
 
@@ -12,6 +13,7 @@ interface ConfirmDialogProviderProps {
  * Provider for global confirm dialog functionality.
  */
 export function ConfirmDialogProvider({ children }: ConfirmDialogProviderProps) {
+  const { t } = useTranslation()
   const [isOpen, setIsOpen] = useState(false)
   const [options, setOptions] = useState<ConfirmOptions>({ message: '' })
   const [resolveRef, setResolveRef] = useState<((value: boolean) => void) | null>(null)
@@ -44,10 +46,10 @@ export function ConfirmDialogProvider({ children }: ConfirmDialogProviderProps) 
             <div style={styles.message}>{options.message}</div>
             <div style={styles.buttons}>
               <button style={styles.cancelBtn} onClick={handleCancel}>
-                {options.cancelText || '取消'}
+                {options.cancelText || t('cancel')}
               </button>
               <button style={styles.confirmBtn} onClick={handleConfirm}>
-                {options.confirmText || '确定'}
+                {options.confirmText || t('confirm')}
               </button>
             </div>
           </div>

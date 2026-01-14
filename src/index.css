@@ -4,12 +4,48 @@
   box-sizing: border-box;
 }
 
+/* Remove default button focus styles */
+button:focus,
+button:focus-visible {
+  outline: none;
+}
+
 html,
 body,
 #root {
   width: 100%;
   height: 100%;
   overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* Override tldraw fonts to match app UI */
+.tl-container {
+  --tl-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --tl-font-mono: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.tlui-menu,
+.tlui-menu *,
+.tlui-context-menu,
+.tlui-context-menu * {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important;
+}
+
+/* Fix tldraw submenu overlap */
+.tlui-menu__submenu__content {
+  margin-left: 6px !important;
+}
+
+/* Constrain tldraw context menu within canvas bounds */
+.tlui-context-menu__content,
+.tlui-menu__submenu__content {
+  max-width: calc(100vw - 540px) !important; /* Account for side panels */
+}
+
+/* Force submenu to open left when near right edge */
+.tlui-menu__submenu__content[data-side="right"] {
+  --radix-context-menu-content-transform-origin: right top;
 }
 
 /* Prevent tldraw from hiding the cursor */

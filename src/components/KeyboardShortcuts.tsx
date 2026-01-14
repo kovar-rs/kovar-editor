@@ -49,9 +49,11 @@ export function KeyboardShortcuts() {
         switch (e.key.toLowerCase()) {
           case 'd': // Duplicate
             e.preventDefault()
-            const selected = editor.getSelectedShapeIds()
-            if (selected.length > 0) {
-              editor.duplicateShapes(selected, { x: 20, y: 20 })
+            {
+              const selected = editor.getSelectedShapeIds()
+              if (selected.length > 0) {
+                editor.duplicateShapes(selected, { x: 20, y: 20 })
+              }
             }
             break
 

@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { useEditor, useValue } from 'tldraw'
 import type { TLShape } from 'tldraw'
 import type { KovarMeta } from '../../types/kovar'
@@ -33,6 +34,7 @@ function getTypeLabel(type: string): string {
  * Properties tab showing binding-related attributes.
  */
 export function PropertiesTab() {
+  const { t } = useTranslation()
   const editor = useEditor()
 
   const selectedShapes = useValue(
@@ -65,7 +67,7 @@ export function PropertiesTab() {
   if (!selectedShape) {
     return (
       <div style={styles.empty}>
-        {selectedShapes.length === 0 ? '选择一个组件' : '只能编辑单个组件'}
+        {selectedShapes.length === 0 ? t('props.selectOne') : t('props.singleOnly')}
       </div>
     )
   }
@@ -74,7 +76,7 @@ export function PropertiesTab() {
     <div style={styles.container}>
       {/* Type info / selector */}
       <div style={styles.section}>
-        <div style={styles.label}>类型</div>
+        <div style={styles.label}>{t('props.type')}</div>
         {selectedShape.type === 'geo' ? (
           <Select
             value={(meta.component_type as string) || 'container'}
@@ -111,7 +113,7 @@ export function PropertiesTab() {
               onChange={(e) => updateMeta('is_display', e.target.checked)}
               style={styles.checkbox}
             />
-            <span>动态显示 (k-display)</span>
+            <span>{t('props.dynamicDisplay')}</span>
           </label>
         </div>
       )}
@@ -119,7 +121,7 @@ export function PropertiesTab() {
       {/* Visibility binding */}
       <div style={styles.section}>
         <label style={styles.label} htmlFor="visibility-binding">
-          可见性绑定
+          {t('props.visibilityBinding')}
         </label>
         <input
           id="visibility-binding"
