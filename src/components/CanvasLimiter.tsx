@@ -1,7 +1,8 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useRef } from 'react'
 import { useEditor } from 'tldraw'
 
 const FRAME_PADDING = 20
+const RESIZE_DEBOUNCE_MS = 150
 
 /**
  * Find the Main Window frame by meta.is_main_window flag.
@@ -12,60 +13,54 @@ function findMainWindow(editor: ReturnType<typeof useEditor>) {
 }
 
 /**
- * Initializes the main design frame to fill the tldraw viewport with padding.
- * Frame is locked and camera zooms to fit it.
+ * Zooms camera to fit Main Window in viewport.
+ * If no Main Window exists, creates one that fits the current viewport.
  */
 export function CanvasLimiter() {
   const editor = useEditor()
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const updateFrame = useCallback(() => {
+  const updateView = useCallback(() => {
     if (!editor) return
 
-    // Get the viewport bounds (now tldraw only fills the center area)
-    const viewportBounds = editor.getViewportScreenBounds()
-
-    // Frame slightly smaller than viewport so borders are visible
-    const frameWidth = viewportBounds.w - FRAME_PADDING * 2
-    const frameHeight = viewportBounds.h - FRAME_PADDING * 2
-
-    // Frame at origin
-    const frameX = 0
-    const frameY = 0
+    // Temporarily unlock camera for zooming
+    editor.setCameraOptions({ isLocked: false })
 
     const existingFrame = findMainWindow(editor)
 
     if (existingFrame) {
-      editor.updateShapes([
-        {
-          id: existingFrame.id,
-          type: 'frame',
-          x: frameX,
-          y: frameY,
-          isLocked: true,
-          props: { w: frameWidth, h: frameHeight },
-        },
-      ])
+      // Main Window exists - zoom camera to fit it (don't resize the frame)
+      const bounds = editor.getShapePageBounds(existingFrame)
+      if (bounds) {
+        editor.zoomToBounds(bounds, {
+          animation: { duration: 0 },
+          inset: FRAME_PADDING,
+        })
+      }
     } else {
-      // Create with random ID, mark with meta
+      // No Main Window - create one that fits current viewport
+      const viewportBounds = editor.getViewportScreenBounds()
+      const frameWidth = viewportBounds.w - FRAME_PADDING * 2
+      const frameHeight = viewportBounds.h - FRAME_PADDING * 2
+
       editor.createShapes([
         {
           type: 'frame',
-          x: frameX,
-          y: frameY,
+          x: 0,
+          y: 0,
           isLocked: true,
           meta: { is_main_window: true },
           props: { w: frameWidth, h: frameHeight, name: 'Main Window' },
         },
       ])
+
+      editor.zoomToBounds(
+        { x: 0, y: 0, w: frameWidth, h: frameHeight },
+        { animation: { duration: 0 }, inset: FRAME_PADDING }
+      )
     }
 
-    // Zoom to fit the frame with some padding
-    editor.zoomToBounds(
-      { x: frameX, y: frameY, w: frameWidth, h: frameHeight },
-      { animation: { duration: 0 }, inset: FRAME_PADDING }
-    )
-
-    // Lock camera
+    // Lock camera again
     editor.setCameraOptions({
       isLocked: true,
       wheelBehavior: 'none',
@@ -74,26 +69,37 @@ export function CanvasLimiter() {
     })
   }, [editor])
 
+  // Debounced resize handler - only fires after resize stops
+  const debouncedUpdate = useCallback(() => {
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current)
+    }
+    debounceTimer.current = setTimeout(updateView, RESIZE_DEBOUNCE_MS)
+  }, [updateView])
+
   useEffect(() => {
     // Initial update with delay to ensure editor is ready
-    setTimeout(updateFrame, 100)
+    setTimeout(updateView, 100)
 
-    // Window resize
-    window.addEventListener('resize', updateFrame)
+    // Window resize - debounced
+    window.addEventListener('resize', debouncedUpdate)
 
     // Listen for panel width changes via storage events
     const handleStorage = (e: StorageEvent) => {
       if (e.key?.includes('panel-width')) {
-        setTimeout(updateFrame, 50)
+        debouncedUpdate()
       }
     }
     window.addEventListener('storage', handleStorage)
 
     return () => {
-      window.removeEventListener('resize', updateFrame)
+      window.removeEventListener('resize', debouncedUpdate)
       window.removeEventListener('storage', handleStorage)
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current)
+      }
     }
-  }, [updateFrame])
+  }, [updateView, debouncedUpdate])
 
   return null
 }
