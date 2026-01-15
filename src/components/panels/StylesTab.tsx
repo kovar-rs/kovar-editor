@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next'
 import { useEditor, useValue, STROKE_SIZES } from 'tldraw'
 import type { TLShape } from 'tldraw'
 import type { KovarMeta } from '../../types/kovar'
-import { MAIN_FRAME_ID } from '../../lib/constants'
 
 type TLShapeWithKovarMeta = TLShape & { meta: Partial<KovarMeta> }
 
@@ -36,9 +35,13 @@ export function StylesTab() {
 
   const selectedShapes = useValue(
     'selected shapes',
-    () => editor.getSelectedShapes().filter(
-      (s) => s.id !== `shape:${MAIN_FRAME_ID}`
-    ) as TLShapeWithKovarMeta[],
+    () => editor.getSelectedShapes().filter((s) => {
+      // Exclude Main Window frame
+      if (s.type === 'frame' && s.meta.is_main_window === true) {
+        return false
+      }
+      return true
+    }) as TLShapeWithKovarMeta[],
     [editor]
   )
 
@@ -231,6 +234,31 @@ export function StylesTab() {
             }}
             style={styles.slider}
           />
+        </div>
+      )}
+
+      {/* Font style for text shapes */}
+      {selectedShape.type === 'text' && (
+        <div style={styles.section}>
+          <div style={styles.label}>{t('styles.font')}</div>
+          <div style={styles.row}>
+            {[
+              { value: 'sans', label: t('styles.fontSans') },
+              { value: 'serif', label: t('styles.fontSerif') },
+              { value: 'mono', label: t('styles.fontMono') },
+            ].map(({ value, label }) => (
+              <button
+                key={value}
+                style={{
+                  ...styles.optionBtn,
+                  backgroundColor: props.font === value ? '#e8e8e8' : 'transparent',
+                }}
+                onClick={() => updateProps({ font: value })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 

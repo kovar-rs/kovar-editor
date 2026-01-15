@@ -1,6 +1,5 @@
-import { Tldraw, DefaultDashStyle } from 'tldraw'
-import type { Editor, TLComponents } from 'tldraw'
-import { useTranslation } from 'react-i18next'
+import { Tldraw } from 'tldraw'
+import type { TLComponents } from 'tldraw'
 import 'tldraw/tldraw.css'
 import './lib/constants'
 import { Layout, TopBarPortal, LeftPanelPortal, RightPanelPortal } from './components/layout/Layout'
@@ -14,6 +13,7 @@ import { CursorFix } from './components/CursorFix'
 import { ShapeNaming } from './components/ShapeNaming'
 import { BorderWidthSync } from './components/BorderWidthSync'
 import { ConfirmDialogProvider } from './components/ConfirmDialog'
+import { EditorSetup } from './components/EditorSetup'
 
 /**
  * Disable tldraw's default context menu - we use our own.
@@ -28,6 +28,9 @@ const components: TLComponents = {
 function EditorUI() {
   return (
     <>
+      {/* Editor initialization */}
+      <EditorSetup />
+
       {/* Portal content to layout slots */}
       <TopBarPortal>
         <TopBar />
@@ -50,32 +53,11 @@ function EditorUI() {
   )
 }
 
-/**
- * Sets default styles for new shapes.
- */
-function handleMount(editor: Editor, locale: string) {
-  editor.setStyleForNextShapes(DefaultDashStyle, 'solid')
-  // Sync tldraw locale with i18n
-  editor.user.updateUserPreferences({ locale })
-}
-
 export default function App() {
-  const { i18n } = useTranslation()
-
-  const onMount = (editor: Editor) => {
-    handleMount(editor, i18n.language)
-
-    // Listen for language changes and update tldraw
-    const handleLanguageChange = (lng: string) => {
-      editor.user.updateUserPreferences({ locale: lng })
-    }
-    i18n.on('languageChanged', handleLanguageChange)
-  }
-
   return (
     <ConfirmDialogProvider>
       <Layout>
-        <Tldraw hideUi components={components} onMount={onMount}>
+        <Tldraw hideUi components={components}>
           <EditorUI />
         </Tldraw>
       </Layout>

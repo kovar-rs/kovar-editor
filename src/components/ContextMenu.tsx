@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react
 import { useTranslation } from 'react-i18next'
 import { useEditor, useValue, createShapeId, GeoShapeGeoStyle, toRichText } from 'tldraw'
 import type { TLShape, TLShapeId, Vec } from 'tldraw'
-import { MAIN_FRAME_ID } from '../lib/constants'
 
 interface MenuPosition {
   x: number
@@ -43,6 +42,13 @@ function adjustPosition(
 }
 
 /**
+ * Checks if a shape is the Main Window frame.
+ */
+function isMainWindow(shape: TLShape): boolean {
+  return shape.type === 'frame' && shape.meta.is_main_window === true
+}
+
+/**
  * Context menu for shape operations including reparenting.
  */
 export function ContextMenu() {
@@ -67,12 +73,10 @@ export function ContextMenu() {
     [editor]
   )
 
-  const mainFrameId = `shape:${MAIN_FRAME_ID}`
-
   // Get potential parent containers (geo shapes that are not selected)
   const potentialParents = allShapes.filter((shape): shape is TLShape => {
     if (shape.type !== 'geo' && shape.type !== 'frame') return false
-    if (shape.id === mainFrameId) return false
+    if (isMainWindow(shape)) return false
     // Don't allow selecting self or selected shapes as parent
     if (selectedShapes.some((s) => s.id === shape.id)) return false
     // Don't allow child to become parent of its ancestor
@@ -185,7 +189,7 @@ export function ContextMenu() {
 
   const handleReparent = (parentId: string) => {
     const shapeIds = selectedShapes
-      .filter((s) => s.id !== mainFrameId)
+      .filter((s) => !isMainWindow(s))
       .map((s) => s.id)
 
     if (shapeIds.length > 0) {
@@ -195,19 +199,23 @@ export function ContextMenu() {
   }
 
   const handleUnparent = () => {
+    // Find Main Window and reparent to it
+    const mainWindow = allShapes.find(isMainWindow)
+    if (!mainWindow) return
+
     const shapeIds = selectedShapes
-      .filter((s) => s.id !== mainFrameId)
+      .filter((s) => !isMainWindow(s))
       .map((s) => s.id)
 
     if (shapeIds.length > 0) {
-      editor.reparentShapes(shapeIds, createShapeId(MAIN_FRAME_ID))
+      editor.reparentShapes(shapeIds, mainWindow.id)
     }
     closeMenu()
   }
 
   const handleDelete = () => {
     const shapeIds = selectedShapes
-      .filter((s) => s.id !== mainFrameId)
+      .filter((s) => !isMainWindow(s))
       .map((s) => s.id)
 
     if (shapeIds.length > 0) {
@@ -218,7 +226,7 @@ export function ContextMenu() {
 
   const handleDuplicate = () => {
     const shapeIds = selectedShapes
-      .filter((s) => s.id !== mainFrameId)
+      .filter((s) => !isMainWindow(s))
       .map((s) => s.id)
 
     if (shapeIds.length > 0) {
@@ -228,7 +236,7 @@ export function ContextMenu() {
   }
 
   const handleBringToFront = () => {
-    const shapeIds = selectedShapes.filter((s) => s.id !== mainFrameId).map((s) => s.id)
+    const shapeIds = selectedShapes.filter((s) => !isMainWindow(s)).map((s) => s.id)
     if (shapeIds.length > 0) {
       editor.bringToFront(shapeIds)
     }
@@ -236,7 +244,7 @@ export function ContextMenu() {
   }
 
   const handleSendToBack = () => {
-    const shapeIds = selectedShapes.filter((s) => s.id !== mainFrameId).map((s) => s.id)
+    const shapeIds = selectedShapes.filter((s) => !isMainWindow(s)).map((s) => s.id)
     if (shapeIds.length > 0) {
       editor.sendToBack(shapeIds)
     }
@@ -317,10 +325,13 @@ export function ContextMenu() {
 
   if (!menuPosition) return null
 
-  const validSelection = selectedShapes.filter((s) => s.id !== mainFrameId)
+  const validSelection = selectedShapes.filter((s) => !isMainWindow(s))
   const hasSelection = validSelection.length > 0
   const currentParentId = selectedShapes[0]?.parentId
-  const hasParent = currentParentId && currentParentId !== mainFrameId
+
+  // Check if parent is Main Window
+  const mainWindow = allShapes.find(isMainWindow)
+  const hasParent = currentParentId && mainWindow && currentParentId !== mainWindow.id
 
   return (
     <>

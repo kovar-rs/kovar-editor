@@ -1,6 +1,6 @@
 import type { TLShape } from 'tldraw'
 import type { KovarNode, KovarSchema, KovarMeta } from '../types/kovar'
-import { SCHEMA_VERSION, MAIN_FRAME_ID } from './constants'
+import { SCHEMA_VERSION } from './constants'
 
 type TLShapeWithMeta = TLShape & { meta: KovarMeta }
 
@@ -116,7 +116,13 @@ function buildTree(
   assets?: Map<string, string>
 ): KovarNode[] {
   return shapes
-    .filter((s) => s.parentId === parentId && s.id !== `shape:${MAIN_FRAME_ID}`)
+    .filter((s) => {
+      // Exclude Main Window frame from tree
+      if (s.type === 'frame' && s.meta.is_main_window === true) {
+        return false
+      }
+      return s.parentId === parentId
+    })
     .sort((a, b) => (a.index > b.index ? 1 : -1))
     .map((shape) => {
       const node = shapeToNode(shape, assets)
@@ -136,13 +142,12 @@ export function transformToSchema(
   shapes: TLShape[],
   options: TransformOptions = {}
 ): KovarSchema {
-  const frameId = `shape:${MAIN_FRAME_ID}`
   const typedShapes = shapes as TLShapeWithMeta[]
 
-  // Find the main frame for dimensions
-  const mainFrame = typedShapes.find((s) => s.id === frameId)
+  // Find the main frame by meta flag
+  const mainFrame = typedShapes.find((s) => s.type === 'frame' && s.meta.is_main_window === true)
   if (!mainFrame) {
-    throw new Error(`Main frame not found: ${frameId}`)
+    throw new Error('Main Window frame not found')
   }
 
   const frameProps = mainFrame.props as Record<string, unknown>
@@ -154,8 +159,11 @@ export function transformToSchema(
   // Build tree from page-level shapes (excluding Main Window)
   const children = buildTree(typedShapes, pageId, options.assets)
 
+  // Use the main frame's ID for the body element
+  const mainWindowId = mainFrame.id.replace('shape:', '')
+
   const root: KovarNode = {
-    id: 'root',
+    id: mainWindowId,
     type: 'container',
     style: {
       x: 0,
@@ -177,7 +185,7 @@ export function transformToSchema(
  */
 function findPageId(shapes: TLShapeWithMeta[]): string {
   // Main frame's parentId should be the page id
-  const mainFrame = shapes.find((s) => s.id === `shape:${MAIN_FRAME_ID}`)
+  const mainFrame = shapes.find((s) => s.type === 'frame' && s.meta.is_main_window === true)
   if (mainFrame) {
     return mainFrame.parentId as string
   }
@@ -194,7 +202,7 @@ function findPageId(shapes: TLShapeWithMeta[]): string {
  * Generates HTML string from Kovar Schema.
  */
 export function schemaToHtml(schema: KovarSchema): string {
-  const renderNode = (node: KovarNode, indent = 0): string => {
+  const renderNode = (node: KovarNode, isRoot = false, indent = 0): string => {
     const pad = '  '.repeat(indent)
     const style = [
       'position: absolute',
@@ -214,8 +222,14 @@ export function schemaToHtml(schema: KovarSchema): string {
 
     // Handle list-item as template
     if (node.type === 'list-item') {
-      const inner = node.children?.map((c) => renderNode(c, indent + 1)).join('\n') || ''
+      const inner = node.children?.map((c) => renderNode(c, false, indent + 1)).join('\n') || ''
       return `${pad}<template id="${id}">\n${inner}\n${pad}</template>`
+    }
+
+    // Root node should be rendered as <body>
+    if (isRoot) {
+      const childrenHtml = node.children?.map((c) => renderNode(c, false, indent + 1)).join('\n') || ''
+      return `${pad}<body id="${id}" style="${style}">\n${childrenHtml}\n${pad}</body>`
     }
 
     // Map type to HTML tag
@@ -241,7 +255,7 @@ export function schemaToHtml(schema: KovarSchema): string {
 
     // Render children or text content
     if (node.children && node.children.length > 0) {
-      const childrenHtml = node.children.map((c) => renderNode(c, indent + 1)).join('\n')
+      const childrenHtml = node.children.map((c) => renderNode(c, false, indent + 1)).join('\n')
       return `${pad}<${tag} id="${id}" style="${style}">\n${childrenHtml}\n${pad}</${tag}>`
     }
 
@@ -252,7 +266,7 @@ export function schemaToHtml(schema: KovarSchema): string {
     return `${pad}<${tag} id="${id}" style="${style}"></${tag}>`
   }
 
-  return renderNode(schema.root)
+  return renderNode(schema.root, true)
 }
 
 /**

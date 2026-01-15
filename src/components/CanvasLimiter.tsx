@@ -1,8 +1,15 @@
 import { useEffect, useCallback } from 'react'
-import { useEditor, createShapeId } from 'tldraw'
-import { MAIN_FRAME_ID } from '../lib/constants'
+import { useEditor } from 'tldraw'
 
 const FRAME_PADDING = 20
+
+/**
+ * Find the Main Window frame by meta.is_main_window flag.
+ */
+function findMainWindow(editor: ReturnType<typeof useEditor>) {
+  const frames = editor.getCurrentPageShapes().filter((s) => s.type === 'frame')
+  return frames.find((f) => f.meta.is_main_window === true)
+}
 
 /**
  * Initializes the main design frame to fill the tldraw viewport with padding.
@@ -25,13 +32,12 @@ export function CanvasLimiter() {
     const frameX = 0
     const frameY = 0
 
-    const frameId = createShapeId(MAIN_FRAME_ID)
-    const existingFrame = editor.getShape(frameId)
+    const existingFrame = findMainWindow(editor)
 
     if (existingFrame) {
       editor.updateShapes([
         {
-          id: frameId,
+          id: existingFrame.id,
           type: 'frame',
           x: frameX,
           y: frameY,
@@ -40,13 +46,14 @@ export function CanvasLimiter() {
         },
       ])
     } else {
+      // Create with random ID, mark with meta
       editor.createShapes([
         {
-          id: frameId,
           type: 'frame',
           x: frameX,
           y: frameY,
           isLocked: true,
+          meta: { is_main_window: true },
           props: { w: frameWidth, h: frameHeight, name: 'Main Window' },
         },
       ])

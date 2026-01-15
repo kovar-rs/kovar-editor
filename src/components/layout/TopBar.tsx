@@ -1,11 +1,10 @@
 import { useState, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useEditor } from 'tldraw'
+import { useEditor, getSnapshot } from 'tldraw'
 import { transformToSchema, schemaToHtml } from '../../lib/transformer'
 import { useConfirm } from '../../hooks/useConfirm'
 import { CodePreviewModal } from '../CodePreview'
-import { MAIN_FRAME_ID } from '../../lib/constants'
-import { saveHtml, saveSchema } from '../../lib/api'
+import { saveHtml, saveSchema, saveTldr } from '../../lib/api'
 
 const LANGUAGES = [
   { code: 'en', label: 'English' },
@@ -44,7 +43,13 @@ export function TopBar() {
 
   const handleClear = async () => {
     const shapes = editor.getCurrentPageShapes()
-    const shapesToDelete = shapes.filter((s) => s.id !== `shape:${MAIN_FRAME_ID}`)
+    const shapesToDelete = shapes.filter((s) => {
+      // Don't delete Main Window frame
+      if (s.type === 'frame' && s.meta.is_main_window === true) {
+        return false
+      }
+      return true
+    })
 
     if (shapesToDelete.length === 0) {
       return
@@ -69,9 +74,15 @@ export function TopBar() {
     setSaveOpen(false)
     try {
       const data = getExportData()
-      const result = await saveHtml(data.html)
-      if (result.success) {
-        console.log('Saved successfully:', result.path)
+
+      // Save both HTML and .tldr snapshot
+      const [htmlResult] = await Promise.all([
+        saveHtml(data.html),
+        saveTldr(getSnapshot(editor.store)),
+      ])
+
+      if (htmlResult.success) {
+        console.log('Saved successfully:', htmlResult.path)
       }
     } catch (e) {
       console.error('Save error:', e)
@@ -88,9 +99,15 @@ export function TopBar() {
     setSaveOpen(false)
     try {
       const data = getExportData()
-      const result = await saveSchema(data.schema)
-      if (result.success) {
-        console.log('Schema saved:', result.path)
+
+      // Save both Schema and .tldr snapshot
+      const [schemaResult] = await Promise.all([
+        saveSchema(data.schema),
+        saveTldr(getSnapshot(editor.store)),
+      ])
+
+      if (schemaResult.success) {
+        console.log('Schema saved:', schemaResult.path)
       }
     } catch (e) {
       console.error('Save schema error:', e)

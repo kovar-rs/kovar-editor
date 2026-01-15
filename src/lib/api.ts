@@ -55,6 +55,51 @@ export async function saveSchema(schema: object): Promise<SaveResponse> {
 }
 
 /**
+ * Save tldraw snapshot to kovar-cli server as .tldr file.
+ * @param snapshot - tldraw document snapshot (JSON serializable)
+ */
+export async function saveTldr(snapshot: object): Promise<SaveResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/tldr`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ snapshot }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`Save tldr failed: ${response.status} ${response.statusText}`)
+  }
+
+  return response.json()
+}
+
+/**
+ * Load tldraw snapshot from kovar-cli server.
+ */
+export async function loadTldr(): Promise<object | null> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/tldr`, {
+      method: 'GET',
+    })
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        // File doesn't exist yet, return null
+        return null
+      }
+      throw new Error(`Load tldr failed: ${response.status} ${response.statusText}`)
+    }
+
+    const data = await response.json()
+    return data.snapshot || null
+  } catch (e) {
+    console.error('Load tldr error:', e)
+    return null
+  }
+}
+
+/**
  * Check if kovar-cli server is available.
  */
 export async function checkServerHealth(): Promise<boolean> {

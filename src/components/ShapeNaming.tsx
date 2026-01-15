@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useEditor } from 'tldraw'
 import type { TLShape, TLShapeId } from 'tldraw'
-import { MAIN_FRAME_ID } from '../lib/constants'
 
 /**
  * Extracts base name and number from a name like "geo-1" or "myShape-2".
@@ -42,9 +41,15 @@ function getExistingNames(shapes: TLShape[]): Set<string> {
 
 /**
  * Counts shapes by type to generate default names.
+ * Excludes Main Window frame.
  */
 function countShapesByType(shapes: TLShape[], type: string): number {
-  return shapes.filter((s) => s.type === type && s.id !== `shape:${MAIN_FRAME_ID}`).length
+  return shapes.filter((s) => {
+    if (s.type !== type) return false
+    // Exclude Main Window frame
+    if (s.type === 'frame' && s.meta.is_main_window === true) return false
+    return true
+  }).length
 }
 
 /**
@@ -66,8 +71,8 @@ export function ShapeNaming() {
           const existingNames = getExistingNames(allShapes)
 
           for (const [id, shape] of Object.entries(changes.added) as [string, TLShape][]) {
-            // Skip main frame
-            if (id === `shape:${MAIN_FRAME_ID}`) continue
+            // Skip Main Window frame
+            if (shape.type === 'frame' && shape.meta.is_main_window === true) continue
             // Skip already processed
             if (processedShapes.current.has(id)) continue
 

@@ -26,11 +26,6 @@ export const DEFAULT_CANVAS: CanvasConfig = {
 }
 
 /**
- * Frame ID for the main design area.
- */
-export const MAIN_FRAME_ID = 'kovar:main-frame'
-
-/**
  * API endpoint for saving HTML to kovar-cli.
  */
 export const API_SAVE_ENDPOINT = '/api/save'

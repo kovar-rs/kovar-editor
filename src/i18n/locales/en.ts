@@ -59,6 +59,10 @@ export default {
   'styles.borderDashed': 'Dashed',
   'styles.borderDotted': 'Dotted',
   'styles.borderWidth': 'Border Width',
+  'styles.font': 'Font',
+  'styles.fontSans': 'Sans',
+  'styles.fontSerif': 'Serif',
+  'styles.fontMono': 'Mono',
   'styles.opacity': 'Opacity',
 
   // Layer tree

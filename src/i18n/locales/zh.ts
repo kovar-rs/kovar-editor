@@ -59,6 +59,10 @@ export default {
   'styles.borderDashed': '虚线',
   'styles.borderDotted': '点线',
   'styles.borderWidth': '边框粗细',
+  'styles.font': '字体',
+  'styles.fontSans': '无衬线',
+  'styles.fontSerif': '衬线',
+  'styles.fontMono': '等宽',
   'styles.opacity': '透明度',
 
   // Layer tree

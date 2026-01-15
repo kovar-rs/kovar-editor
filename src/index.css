@@ -81,8 +81,20 @@ body,
 }
 
 /* Main Window frame label: smaller and positioned inside */
-.tl-frame-label {
+.tl-frame-label,
+.tl-frame-label *,
+.tl-frame__label,
+.tl-frame__label * {
   font-size: 10px !important;
   transform: translateY(10px) !important;
   opacity: 0.6 !important;
+}
+
+/* Remove frame heading background */
+.tl-frame-heading-hit-area {
+  background: none !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
 }

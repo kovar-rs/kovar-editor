@@ -2,7 +2,6 @@ import { useTranslation } from 'react-i18next'
 import { useEditor, useValue } from 'tldraw'
 import type { TLShape } from 'tldraw'
 import type { KovarMeta } from '../../types/kovar'
-import { MAIN_FRAME_ID } from '../../lib/constants'
 import { Select } from '../Select'
 
 type TLShapeWithKovarMeta = TLShape & { meta: Partial<KovarMeta> }
@@ -39,9 +38,13 @@ export function PropertiesTab() {
 
   const selectedShapes = useValue(
     'selected shapes',
-    () => editor.getSelectedShapes().filter(
-      (s) => s.id !== `shape:${MAIN_FRAME_ID}`
-    ) as TLShapeWithKovarMeta[],
+    () => editor.getSelectedShapes().filter((s) => {
+      // Exclude Main Window frame
+      if (s.type === 'frame' && s.meta.is_main_window === true) {
+        return false
+      }
+      return true
+    }) as TLShapeWithKovarMeta[],
     [editor]
   )
 
