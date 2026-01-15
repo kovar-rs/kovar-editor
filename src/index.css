@@ -1,0 +1,100 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Remove default button focus styles */
+button:focus,
+button:focus-visible {
+  outline: none;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* Override tldraw fonts to match app UI */
+.tl-container {
+  --tl-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  --tl-font-mono: 'SF Mono', Consolas, 'Liberation Mono', Menlo, monospace;
+}
+
+.tlui-menu,
+.tlui-menu *,
+.tlui-context-menu,
+.tlui-context-menu * {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif !important;
+}
+
+/* Fix tldraw submenu overlap */
+.tlui-menu__submenu__content {
+  margin-left: 6px !important;
+}
+
+/* Constrain tldraw context menu within canvas bounds */
+.tlui-context-menu__content,
+.tlui-menu__submenu__content {
+  max-width: calc(100vw - 540px) !important; /* Account for side panels */
+}
+
+/* Force submenu to open left when near right edge */
+.tlui-menu__submenu__content[data-side="right"] {
+  --radix-context-menu-content-transform-origin: right top;
+}
+
+/* Prevent tldraw from hiding the cursor */
+.tl-canvas,
+.tl-canvas *,
+.tl-shapes,
+.tl-shapes * {
+  cursor: inherit !important;
+}
+
+.tl-container[data-state="select"] .tl-canvas,
+.tl-container:not([data-state]) .tl-canvas {
+  cursor: default !important;
+}
+
+.tl-container[data-state="geo"] .tl-canvas {
+  cursor: crosshair !important;
+}
+
+.tl-container[data-state="text"] .tl-canvas {
+  cursor: text !important;
+}
+
+/* Override any inline cursor:none styles */
+[style*="cursor: none"],
+[style*="cursor:none"] {
+  cursor: inherit !important;
+}
+
+/* Hide tldraw watermark for open-source non-commercial use */
+.tl-watermark_SEE-LICENSE {
+  display: none !important;
+}
+
+/* Main Window frame label: smaller and positioned inside */
+.tl-frame-label,
+.tl-frame-label *,
+.tl-frame__label,
+.tl-frame__label * {
+  font-size: 10px !important;
+  transform: translateY(10px) !important;
+  opacity: 0.6 !important;
+}
+
+/* Remove frame heading background */
+.tl-frame-heading-hit-area {
+  background: none !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
